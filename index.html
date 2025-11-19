@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghép Đôi Ngẫu Nhiên</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+        }
+        
+        .title-font {
+            font-family: 'Pacifico', cursive;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        .list-item-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .heart-beat {
+            animation: heartbeat 1.5s infinite;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            14% { transform: scale(1.1); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.1); }
+            70% { transform: scale(1); }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-5xl md:text-6xl text-pink-500 title-font mb-2 drop-shadow-sm">Wheel of Names</h1>
+            <p class="text-slate-500 text-lg"></p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-full">
+            
+            <!-- Cột Nam -->
+            <div class="md:col-span-3 glass-panel rounded-2xl p-6 h-[600px] flex flex-col">
+                <h2 class="text-xl font-bold text-blue-600 mb-4 flex items-center">
+                    <i class="fas fa-mars mr-2"></i> Danh sách Nam (<span id="count-boys">0</span>)
+                </h2>
+                <div id="list-boys" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- Danh sách nam sẽ render ở đây -->
+                </div>
+            </div>
+
+            <!-- Khu vực chính (Nút bấm & Kết quả) -->
+            <div class="md:col-span-6 flex flex-col items-center justify-start pt-10 space-y-6">
+                
+                <!-- Hộp kết quả -->
+                <div class="w-full relative h-48 flex items-center justify-center mb-4">
+                    <div class="absolute inset-0 bg-white rounded-3xl shadow-xl transform rotate-1 border border-pink-100"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-pink-50 to-blue-50 rounded-3xl shadow-inner transform -rotate-1 border border-blue-100"></div>
+                    
+                    <div class="relative z-10 text-center p-6 w-full">
+                        <div id="status-text" class="text-slate-400 font-medium mb-2 uppercase tracking-widest text-sm">Sẵn sàng ghép đôi</div>
+                        
+                        <div id="result-container" class="hidden flex-col items-center justify-center space-y-2">
+                            <div class="text-2xl md:text-3xl font-bold text-blue-600" id="res-boy">...</div>
+                            <div class="text-pink-400 text-xl heart-beat">và</div>
+                            <div class="text-2xl md:text-3xl font-bold text-pink-600" id="res-girl">...</div>
+                        </div>
+
+                        <div id="placeholder-container" class="flex items-center justify-center opacity-20">
+                            <i class="fas fa-infinity text-5xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nhóm Nút bấm -->
+                <div class="flex flex-col w-full space-y-3 px-4 md:px-10">
+                    <button id="btn-spin" onclick="spin()" class="w-full group relative inline-flex items-center justify-center px-8 py-3 text-lg font-bold text-white transition-all duration-200 bg-gradient-to-r from-pink-500 to-purple-600 font-pj rounded-xl focus:outline-none shadow-lg hover:shadow-pink-500/50 hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-magic mr-2"></i> Ghép 1 cặp ngẫu nhiên
+                    </button>
+
+                    <!-- Nút Reset: Đã bỏ confirm() native, dùng logic đổi trạng thái nút -->
+                    <button id="btn-reset" onclick="resetData()" class="w-full inline-flex items-center justify-center px-8 py-3 text-base font-medium text-slate-500 transition-all duration-200 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200">
+                        <i class="fas fa-redo-alt mr-2"></i> Reset danh sách (Làm lại từ đầu)
+                    </button>
+                </div>
+
+                <!-- Kết quả gần nhất -->
+                <div class="w-full bg-white/50 rounded-xl p-4 border border-white/60 shadow-sm flex-1 overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Lịch sử ghép đôi</h3>
+                        <span class="text-xs text-slate-400" id="history-count">0 cặp</span>
+                    </div>
+                    <div id="history-list" class="space-y-2 overflow-y-auto flex-1 text-sm pr-1" style="max-h: 250px;">
+                        <!-- History items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột Nữ -->
+            <div class="md:col-span-3 glass-panel rounded-2xl p-6 h-[600px] flex flex-col">
+                <h2 class="text-xl font-bold text-pink-600 mb-4 flex items-center">
+                    <i class="fas fa-venus mr-2"></i> Danh sách Nữ (<span id="count-girls">0</span>)
+                </h2>
+                <div id="list-girls" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- Danh sách nữ sẽ render ở đây -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DỮ LIỆU BAN ĐẦU ---
+        const initialBoys = [
+            "Bùi Hải Anh", "Mẫn Gia Bảo", "Nguyễn Trần Gia Khánh", "Nguyễn Bình An", 
+            "Hoàng Đức Hiếu", "Đoàn Anh Dũng", "Phạm Quang Thanh", "Trần Quốc Thịnh", 
+            "Dan Naruto", "Lại An Chí Hiển", "Vũ Tấn Thành"
+        ];
+
+        const initialGirls = [
+            "Đoàn Ngọc Bảo Anh", "Phạm Thị Phương Anh", "Nguyễn Thị Phương Anh", "Đinh Minh Anh", 
+            "Nguyễn Hoàng Ngọc Ánh", "Vũ Quỳnh Chi", "Lê Vũ Ngọc Hân", "Bùi Thị Thu Huyền", 
+            "Nguyễn Thị Mai Linh", "Trần Vũ Hoàng Linh", "Nguyễn Ngọc Khánh Linh", "Nguyễn Trà My", 
+            "Nguyễn Thị Uyên Nga", "Quách Thảo Ngọc", "Lê Bảo Ngọc", "Bùi Linh Nhi", 
+            "Nghiêm Yến Nhi", "Đoàn Mai Phương", "Nguyễn An Tâm", "Nguyễn Thu Trang", 
+            "Lê Nguyễn Minh Trang", "Hà Thị Thùy Trang","Phùng Kiều Trinh", "Trần Yến Vy", "Nguyễn Bùi Phương Vy"
+        ];
+
+        // CÁC CẶP ĐÔI CỐ ĐỊNH
+        const fixedCouples = {
+            "Đoàn Anh Dũng": "Đoàn Mai Phương",
+            "Dan Naruto": "Nguyễn Thị Phương Anh",
+            "Mẫn Gia Bảo": "Nguyễn Thị Mai Linh",
+            "Vũ Tấn Thành": "Nguyễn Trà My",
+            "Lại An Chí Hiển": "Nguyễn An Tâm",
+            "Nguyễn Bình An":"Nguyễn Bùi Phương Vy"
+        };
+
+        let boys = [];
+        let girls = [];
+        let isSpinning = false;
+        let historyCount = 0;
+        let currentRunId = 0;
+        let resetTimeout;
+
+        // --- LOGIC ---
+
+        function init() {
+            currentRunId++;
+            isSpinning = false;
+
+            boys = [...initialBoys];
+            girls = [...initialGirls];
+            historyCount = 0;
+            
+            document.getElementById('history-list').innerHTML = '';
+            document.getElementById('history-count').innerText = '0 cặp';
+            document.getElementById('result-container').classList.add('hidden');
+            document.getElementById('placeholder-container').classList.remove('hidden');
+            document.getElementById('status-text').innerText = "Sẵn sàng ghép đôi";
+            document.getElementById('status-text').className = "text-slate-400 font-medium mb-2 uppercase tracking-widest text-sm";
+            
+            toggleButtons(false);
+            renderLists();
+            resetButtonUI(); // Đảm bảo nút reset về trạng thái ban đầu
+        }
+
+        function renderLists() {
+            // Render Boys
+            const boysEl = document.getElementById('list-boys');
+            boysEl.innerHTML = boys.map(name => 
+                `<div class="p-2 bg-blue-50 text-blue-800 rounded-lg border border-blue-100 text-sm font-medium shadow-sm list-item-enter flex justify-between items-center">
+                    <span>${name}</span>
+                 </div>`
+            ).join('');
+            document.getElementById('count-boys').innerText = boys.length;
+
+            // Render Girls
+            const girlsEl = document.getElementById('list-girls');
+            girlsEl.innerHTML = girls.map(name => 
+                `<div class="p-2 bg-pink-50 text-pink-800 rounded-lg border border-pink-100 text-sm font-medium shadow-sm list-item-enter">
+                    ${name}
+                 </div>`
+            ).join('');
+            document.getElementById('count-girls').innerText = girls.length;
+
+            // Update Buttons State
+            const btnSpin = document.getElementById('btn-spin');
+            
+            if (!isSpinning) {
+                if (boys.length === 0) {
+                    btnSpin.disabled = true;
+                    btnSpin.innerHTML = '<i class="fas fa-check mr-2"></i> Hoàn tất';
+                    btnSpin.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btnSpin.disabled = false;
+                    btnSpin.innerHTML = '<i class="fas fa-magic mr-2"></i> Ghép 1 cặp ngẫu nhiên';
+                    btnSpin.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        function calculateNextPair() {
+            if (boys.length === 0) return null;
+
+            const randomBoyIndex = Math.floor(Math.random() * boys.length);
+            const selectedBoy = boys[randomBoyIndex];
+            let selectedGirl = "";
+            let selectedGirlIndex = -1;
+
+            if (fixedCouples.hasOwnProperty(selectedBoy)) {
+                const targetGirlName = fixedCouples[selectedBoy];
+                const idx = girls.indexOf(targetGirlName);
+                
+                if (idx !== -1) {
+                    selectedGirl = targetGirlName;
+                    selectedGirlIndex = idx;
+                } else {
+                    const availableIndices = girls.map((_, i) => i);
+                    const randIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                    selectedGirl = girls[randIdx];
+                    selectedGirlIndex = randIdx;
+                }
+            } else {
+                const reservedGirls = new Set();
+                boys.forEach(b => {
+                    if (b !== selectedBoy && fixedCouples[b]) {
+                        if (girls.includes(fixedCouples[b])) {
+                            reservedGirls.add(fixedCouples[b]);
+                        }
+                    }
+                });
+
+                const availableGirlsForPick = girls.filter(g => !reservedGirls.has(g));
+
+                if (availableGirlsForPick.length > 0) {
+                    const randG = availableGirlsForPick[Math.floor(Math.random() * availableGirlsForPick.length)];
+                    selectedGirl = randG;
+                    selectedGirlIndex = girls.indexOf(randG);
+                } else {
+                    const randIdx = Math.floor(Math.random() * girls.length);
+                    selectedGirl = girls[randIdx];
+                    selectedGirlIndex = randIdx;
+                }
+            }
+
+            return {
+                boy: selectedBoy,
+                girl: selectedGirl,
+                boyIndex: randomBoyIndex,
+                girlIndex: selectedGirlIndex
+            };
+        }
+
+        async function spin() {
+            if (isSpinning || boys.length === 0) return;
+            
+            const myRunId = currentRunId; 
+            
+            isSpinning = true;
+            toggleButtons(true);
+
+            document.getElementById('placeholder-container').classList.add('hidden');
+            const resultContainer = document.getElementById('result-container');
+            resultContainer.classList.remove('hidden');
+            document.getElementById('status-text').innerText = "Đang chọn ngẫu nhiên...";
+            
+            const result = calculateNextPair();
+
+            const resBoy = document.getElementById('res-boy');
+            const resGirl = document.getElementById('res-girl');
+            
+            let steps = 15;
+            for (let i = 0; i < steps; i++) {
+                if (myRunId !== currentRunId) return; 
+
+                resBoy.innerText = boys[Math.floor(Math.random() * boys.length)];
+                resGirl.innerText = girls[Math.floor(Math.random() * girls.length)];
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            if (myRunId !== currentRunId) return;
+
+            finalizePair(result);
+            
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+            isSpinning = false;
+            toggleButtons(false);
+        }
+
+        function finalizePair(result) {
+            document.getElementById('res-boy').innerText = result.boy;
+            document.getElementById('res-girl').innerText = result.girl;
+
+            const currentBoyIndex = boys.indexOf(result.boy);
+            if (currentBoyIndex > -1) boys.splice(currentBoyIndex, 1);
+            
+            const currentGirlIndex = girls.indexOf(result.girl);
+            if (currentGirlIndex > -1) girls.splice(currentGirlIndex, 1);
+
+            addToHistory(result.boy, result.girl);
+            renderLists();
+        }
+
+        function toggleButtons(disabled) {
+            const btnSpin = document.getElementById('btn-spin');
+            if (btnSpin) btnSpin.disabled = disabled;
+        }
+
+        function addToHistory(boy, girl) {
+            historyCount++;
+            document.getElementById('history-count').innerText = `${historyCount} cặp`;
+            
+            const historyList = document.getElementById('history-list');
+            const item = document.createElement('div');
+            item.className = "flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200 shadow-sm list-item-enter hover:bg-slate-50 transition-colors";
+            
+            // ĐÃ XÓA: Logic thêm viền vàng cho cặp đôi định mệnh
+            // Code cũ: if (fixedCouples[boy] === girl) item.classList.add(...) -> Đã xóa
+
+            item.innerHTML = `
+                <div class="w-[45%] text-right font-medium text-blue-700 truncate" title="${boy}">${boy}</div>
+                <div class="w-[10%] text-center text-pink-300">và</div>
+                <div class="w-[45%] text-left font-medium text-pink-700 truncate" title="${girl}">${girl}</div>
+            `;
+            
+            historyList.insertBefore(item, historyList.firstChild);
+        }
+
+        function resetButtonUI() {
+             const btn = document.getElementById('btn-reset');
+             btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+             btn.classList.add('bg-white', 'text-slate-500', 'hover:bg-slate-50');
+             btn.innerHTML = '<i class="fas fa-redo-alt mr-2"></i> Reset danh sách (Làm lại từ đầu)';
+        }
+
+        function resetData() {
+            const btn = document.getElementById('btn-reset');
+            
+            // Nếu đang ở trạng thái chờ xác nhận (nút đỏ) -> Thực hiện reset
+            if (btn.classList.contains('bg-red-500')) {
+                init();
+                clearTimeout(resetTimeout);
+                return;
+            }
+
+            // Chuyển sang trạng thái chờ xác nhận
+            btn.classList.remove('bg-white', 'text-slate-500', 'hover:bg-slate-50');
+            btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i> Bấm lần nữa để xác nhận';
+            
+            // Tự động hủy trạng thái xác nhận sau 3s nếu không bấm
+            resetTimeout = setTimeout(() => {
+                resetButtonUI();
+            }, 3000);
+        }
+
+        // Run init on load
+        init();
+
+    </script>
+</body>
+</html>
